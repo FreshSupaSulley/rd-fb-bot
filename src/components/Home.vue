@@ -2,17 +2,17 @@
 <!-- ... do we also handle the logic when that fails? -->
 <script lang="ts" setup async>
 import { ref, watch } from 'vue';
-const stored = await browser.storage.local.get(["enabled", "delay"]);
-let checked = ref<boolean>(!!stored.enabled);
+const stored = await browser.storage.local.get(["state", "delay"]);
+let state = ref<number>(Number(stored.state ?? 0));
 let delay = ref<number>(Number(stored.delay ?? 2000));
 
 // When the checkbox changes we update sync
-watch(checked, (newVal, oldVal) => {
-  console.log("New value:", checked);
-  browser.storage.local.set({ enabled: newVal }).then(() => {
+watch(state, (newVal, oldVal) => {
+  console.log("New state value:", state);
+  browser.storage.local.set({ state: newVal }).then(() => {
     browser.tabs.reload();
   }).catch(e => {
-    console.error("Failed to update enabled flag", e);
+    console.error("Failed to update state", e);
     // TODO: implement a notification somewhere (overkill) when things to wrong (get a Vue framework??)
     // DONT reset the value cause it creates an endless callback due to watch()
     // checked.value = oldVal;
@@ -26,25 +26,32 @@ watch(delay, (newVal, oldVal) => {
     // delay.value = oldVal;
   });
 });
+
+function msToSeconds(num: number) {
+  return `${num / 1000}s`;
+}
 </script>
 
 <template>
-  <h1>Rick's Deals Facebook Bot</h1>
-  <hr>
-  <br>
-  <!-- Checkbox to enable this thing -->
-  <div style="display: flex; align-items: center; justify-self: center; gap: 0.2rem; padding-bottom: 1rem">
-    <input type="checkbox" id="checkbox" v-model="checked" />
-    <label for="checkbox">{{ checked ? "On" : "Off" }}</label>
-  </div>
-  <!-- Slider -->
-  <div>
-    <p>Delay (ms): {{ delay }}</p>
-    <div class="row">
-      <input type="range" min="2000" max="15000" step="500" v-model="delay" />
+  <div style="text-align: center; max-width: 400px; margin: 0 auto;">
+    <h1>Rick's Deals Facebook Bot</h1>
+    <el-divider />
+
+    <!-- Switch state -->
+    <el-radio-group v-model="state" type="button">
+      <!-- :value instead of value so it gets treated as numbers -->
+      <el-radio :value="0">Off</el-radio>
+      <el-radio :value="1">Select post</el-radio>
+      <el-radio :value="2">On</el-radio>
+    </el-radio-group>
+
+
+    <!-- Slider -->
+    <div style="margin: 10px">
+      <h3 style="margin-bottom: 0">Delay: {{ msToSeconds(delay) }}</h3>
+      <el-slider v-model="delay" :min="2000" :max="15000" :step="500" :format-tooltip="msToSeconds" />
     </div>
   </div>
-  <br>
 </template>
 
 <style scoped>

@@ -1,9 +1,9 @@
-import { defineConfig } from 'wxt';
+import { defineConfig } from "wxt";
 
 // See https://wxt.dev/api/config.html
 export default defineConfig({
   webExt: {
-    disabled: true
+    disabled: true,
   },
   srcDir: "src",
   manifest: ({ browser, mode }) => {
@@ -22,5 +22,5 @@ export default defineConfig({
         }),
     };
   },
-  modules: ['@wxt-dev/module-vue'],
+  modules: ["@wxt-dev/module-vue"],
 });

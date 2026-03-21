@@ -34,5 +34,7 @@ Facebook uses **graphql** for their requests. Upon inspecting those requests, it
 * **Risk of getting flagged as a bot, leading to an account ban**. Probably don't attempt to run 24/7, *especially* on the lowest delay.
 
 # Todo
+- ~~Activate on certain posts, not the entire page~~ done
+- ~~Implement a retry system when speeds are slow and it can't grab people (there's one particular part of the flow)~~ maybe I was geeking?
 - Refresh the page when we run out of posts to theoretically support running this indefinitely.
 - Metrics to show how many people have been invited in the current session.

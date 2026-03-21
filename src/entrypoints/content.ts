@@ -2,8 +2,7 @@
 export default defineContentScript({
   matches: ["*://*.facebook.com/*"],
   main() {
-    async function execute() {
-      const sleepTime = Number(await browser.storage.local.get(["delay"]).then(e => e.delay) ?? 2000); // 2000ms is the default
+    async function executeAll(sleepTime: number) {
       console.log("Sleep time (ms):", sleepTime);
       // Wait a bit before we start to ensure everything loads
       await sleep(sleepTime);
@@ -26,38 +25,55 @@ export default defineContentScript({
           // Click the button
           post.click();
           await sleep(sleepTime);
-          // Find all people until we run out
-          let lastCount = 0,
-            successCount = 0;
-          let invites = $x('//div[@aria-label="Following" or @aria-label="Invite" or @aria-label="Invited"]') as HTMLElement[];
-          while (lastCount == 0 || lastCount != invites.length) {
-            console.log("Found", invites.length, "people (last was", lastCount, ")");
-            for (const person of invites) {
-              // If this person still needs to be invited
-              if (person.ariaLabel == "Invite") {
-                console.log("Sending an invite");
-                person.click();
-                successCount++;
-                await sleep(sleepTime / 2);
-              }
-            }
-            // Scroll to the last goblin to reveal more goons
-            console.log("Scrolling to last goon to reveal more");
-            invites[invites.length - 1].scrollIntoView();
-            lastCount = invites.length;
-            await sleep(sleepTime);
-            // Refresh the array
-            invites = $x('//div[@aria-label="Following" or @aria-label="Invite" or @aria-label="Invited"]') as HTMLElement[];
-          }
-          console.log("Scanned through", lastCount, "goons (", successCount, "invites), moving to next post");
-          // Close window (ideally there's only one button)
-          for (const close of $x('//div[@aria-label="Close"]') as HTMLElement[]) {
-            close.click();
-          }
+          // Find and invite all people until we run out
+          await inviteLikers(sleepTime);
+          console.log("Moving to next post");
         }
       }
     }
-    async function findPosts(sleepTime: number) {
+    /**
+     * Clicks the invite buttons on people that liked our post.
+     * @param sleepTime amount of time (ms) to wait between actions
+     */
+    async function inviteLikers(sleepTime: number) {
+      let lastCount = 0,
+        successCount = 0;
+      let invites = $x('//div[@aria-label="Following" or @aria-label="Invite" or @aria-label="Invited"]') as HTMLElement[];
+      if (!invites.length) {
+        console.warn("Didn't find any invite buttons");
+        return;
+      }
+      while (lastCount == 0 || lastCount != invites.length) {
+        console.log("Found", invites.length, "people (last was", lastCount, ")");
+        for (const person of invites) {
+          // If this person still needs to be invited
+          if (person.ariaLabel == "Invite") {
+            console.log("Sending an invite");
+            person.click();
+            successCount++;
+            await sleep(sleepTime / 2);
+          }
+        }
+        // Scroll to the last goblin to reveal more goons
+        console.log("Scrolling to last goon to reveal more");
+        invites[invites.length - 1].scrollIntoView();
+        lastCount = invites.length;
+        await sleep(sleepTime);
+        // Refresh the array
+        invites = $x('//div[@aria-label="Following" or @aria-label="Invite" or @aria-label="Invited"]') as HTMLElement[];
+      }
+      console.log("Scanned through", lastCount, "goons (", successCount, "invites)");
+      // Close window (ideally there's only one button)
+      for (const close of $x('//div[@aria-label="Close"]') as HTMLElement[]) {
+        close.click();
+      }
+    }
+    /**
+     * Finds the "All reactions" buttons visible on the page, scrolling down when necessary.
+     * @param sleepTime amount of time (ms) to wait before retrying
+     * @returns promise resolving to an array of matching HTMLElements
+     */
+    async function findPosts(sleepTime: number): Promise<HTMLElement[]> {
       let posts: HTMLElement[] = [];
       const maxAttempts = 5;
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -71,21 +87,44 @@ export default defineContentScript({
       }
       throw new Error("Took too long to find posts");
     }
+    var isRunning = false;
     // Sleep for good measure
     // sleep(3000).then(() =>
     browser.storage.local
-      .get("enabled")
-      .then((data) => data.enabled)
-      .then((enabled) => {
-        if (!enabled) {
-          console.log("Extension disabled, abandoning")
+      .get(["state", "delay"])
+      .then((d) => {
+        const state = d.state as number;
+        const delay = (d.delay as number) ?? 2000;
+        console.log("Delay:", delay);
+        // 0 == off
+        if (!state) {
+          console.log("Extension disabled, abandoning");
           return;
+        } else if (state == 1) {
+          // state == 1 => per post
+          // So create an event listener that listens to clicks
+          document.addEventListener("click", async (event) => {
+            if (isRunning) {
+              console.warn("Already running");
+              return;
+            }
+            isRunning = true;
+            try {
+              await sleep(delay);
+              await inviteLikers(delay);
+            } finally {
+              console.log("Done running");
+              isRunning = false;
+            }
+            // const target = event.target as HTMLElement;
+          });
+        } else {
+          console.log("Starting full post scan");
+          // Entrypoint
+          executeAll(delay).catch((e) => {
+            console.error("A fatal error occurred:", e);
+          });
         }
-        console.log("Starting script");
-        // Entrypoint
-        execute().catch((e) => {
-          console.error("A fatal error occurred:", e);
-        });
       })
       .catch((e) => {
         console.error(e);
