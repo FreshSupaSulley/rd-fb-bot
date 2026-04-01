@@ -10,8 +10,8 @@ export default defineConfig({
     return {
       name: "RD Facebook Bot",
       description: "Mass invites people to my Facebook page who like my posts",
-      version: "0.0.1",
-      permissions: ["storage"],
+      version: "0.0.3",
+      permissions: ["storage", "activeTab"],
       host_permissions: ["https://*.facebook.com/*"], // lets us run the content script on the page
       // Specific to firefox during dev
       ...(browser === "firefox" &&

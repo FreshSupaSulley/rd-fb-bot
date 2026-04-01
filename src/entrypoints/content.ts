@@ -79,7 +79,8 @@ export default defineContentScript({
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         window.scrollTo(0, document.body.scrollHeight); // scroll to bottom
         console.log("Trying to find posts (attempt", attempt, ")...");
-        posts = $x('//div[contains(text(), "All reactions") and not(@data-processed="true")]') as HTMLElement[];
+        // changed as of v0.0.3 because the frontend changed hooray
+        posts = $x('//div[contains(@aria-label, "Like: ") and not(@data-processed="true")]') as HTMLElement[];
         if (posts.length > 0) {
           return posts;
         }
@@ -123,6 +124,7 @@ export default defineContentScript({
           // Entrypoint
           executeAll(delay).catch((e) => {
             console.error("A fatal error occurred:", e);
+            browser.runtime.sendMessage(e);
           });
         }
       })
